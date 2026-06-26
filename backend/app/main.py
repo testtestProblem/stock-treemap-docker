@@ -1,22 +1,39 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import settings
+from app.core import shioaji_client
 from app.db.init_db import init_db
 from app.api.routes_account import router as account_router
-from app.api.routes_market import router as market_router
+from app.api.routes_debug import router as debug_router
 from app.api.routes_history import router as history_router
+from app.api.routes_market import router as market_router
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 建立資料表（若不存在）
+    # 建立 SQLite 資料表（若不存在）
     init_db()
-    # 階段 1：初始化 Shioaji 單例
+
+    # 初始化 Shioaji 單例
+    logger.info("正在登入 Shioaji...")
+    shioaji_client.connect(
+        api_key=settings.SJ_API_KEY,
+        secret_key=settings.SJ_SEC_KEY,
+        production=settings.SJ_PRODUCTION,
+    )
+
     # 階段 2：啟動排程器
     yield
-    # 階段 1：logout Shioaji
+
+    # 關閉時登出
+    shioaji_client.disconnect()
     # 階段 2：停止排程器
 
 
@@ -29,6 +46,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(debug_router)
 app.include_router(account_router)
 app.include_router(market_router)
 app.include_router(history_router)
