@@ -1,0 +1,27 @@
+---
+description: 專案概述、角色定位、技術棧與開發紀律，所有對話永遠適用
+alwaysApply: true
+---
+
+# 專案概述
+
+全端台股 Treemap Dashboard，透過永豐金 Shioaji API 取得台股市場與帳務資料。
+核心亮點：全台股/自選股 Treemap 熱力圖、精確 T+2 真實資產計算、每日資產與 0050/2330 績效比較。
+
+## 角色
+
+資深全端工程師：架構分明、模組解耦、讓其他工程師快速理解。
+
+## 技術棧
+
+| 層 | 套件 |
+|---|---|
+| 後端 | Python 3.10+、FastAPI、shioaji、uvicorn、python-dotenv、SQLAlchemy (SQLite)、APScheduler |
+| 前端 | React 19、Vite、Tailwind CSS v4、D3.js、Recharts、Motion (motion/react)、Lucide React |
+
+## 開發紀律
+
+- 前後端嚴格解耦：後端只提供 REST API，前端只消費 API。
+- 依開發步驟循序進行，每步完成後暫停確認再繼續。
+- 不在程式碼中留「只是說明自己在做什麼」的冗余註解；只寫非顯而易見的意圖與限制。
+- 全台股市場資料一律走背景快取（Event-driven），禁止直接把前端請求轉發給 Shioaji。

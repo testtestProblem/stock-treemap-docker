@@ -1,0 +1,46 @@
+---
+description: 後端 REST API 端點契約、真實資產公式、每日排程規範與 SQLite 儲存格式
+globs: backend/**/*.py
+alwaysApply: false
+---
+
+# 後端 API 端點契約
+
+## 端點一覽
+
+| Method | Path | 說明 |
+|--------|------|------|
+| GET | `/api/account/assets` | 真實總資產 (NAV) |
+| GET | `/api/account/positions` | 合併後持倉列表 |
+| GET | `/api/market/treemap` | Treemap 階層資料（`?mode=market\|watchlist`） |
+| GET | `/api/market/kbars` | K 線（`?code=2330`） |
+| GET | `/api/history/performance` | SQLite 歷史資產與基準績效 |
+
+## 真實資產公式
+
+```
+NAV = account_balance()
+    + sum(position.last_price * position.quantity for each merged position)
+    - sum(settlement.amount for settlement in settlements() if T+1 or T+2)
+```
+
+> 必須扣除 `api.settlements()` 中 T+1 與 T+2 的應扣交割款，才是真實可用資產。
+
+## 每日排程（APScheduler）
+
+- 觸發時間：台灣時間 15:40，且當日 2330 有開盤（收盤價 > 0）。
+- 動作：計算當日 NAV，抓取 0050 與 2330 收盤價，寫入 `daily_performance` 資料表。
+
+```python
+# daily_performance 欄位
+date: str          # "YYYY-MM-DD"
+nav: float         # 當日真實總資產
+price_0050: float  # 0050 收盤價
+price_2330: float  # 2330 收盤價
+```
+
+## SQLite 儲存規範
+
+- **自選清單**：存為 JSON 字串欄位（`watchlist JSON`）。
+- **資產結算紀錄**：同上，額外欄位以 JSON 儲存彈性資料。
+- 使用 SQLAlchemy ORM，禁止裸 SQL 字串拼接（防 injection）。
