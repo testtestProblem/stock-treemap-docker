@@ -6,14 +6,16 @@ GET /api/market/snapshot-status   — 階段 2 實作（開發除錯用）
 """
 from fastapi import APIRouter
 
-from app.services.snapshot_store import get_status
+from app.services import snapshot_store, stock_universe
 
 router = APIRouter(prefix="/api/market", tags=["market"])
 
 
 @router.get("/snapshot-status")
 def snapshot_status():
-    return get_status()
+    status = snapshot_store.get_status()
+    status["universe_total"] = len(stock_universe.get_universe())
+    return status
 
 
 @router.get("/treemap")

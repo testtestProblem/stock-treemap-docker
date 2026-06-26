@@ -7,21 +7,29 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.core import shioaji_client
 from app.db.init_db import init_db
+from app.scheduler import scheduler as sched
+from app.services.stock_universe import load_universe
 from app.api.routes_account import router as account_router
 from app.api.routes_debug import router as debug_router
 from app.api.routes_history import router as history_router
 from app.api.routes_market import router as market_router
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 建立 SQLite 資料表（若不存在）
+    # 1. 建立 SQLite 資料表
     init_db()
 
-    # 初始化 Shioaji 單例
+    # 2. 載入股票清單（一次性，存入記憶體）
+    load_universe()
+
+    # 3. 初始化 Shioaji 單例
     logger.info("正在登入 Shioaji...")
     shioaji_client.connect(
         api_key=settings.SJ_API_KEY,
@@ -29,12 +37,14 @@ async def lifespan(app: FastAPI):
         production=settings.SJ_PRODUCTION,
     )
 
-    # 階段 2：啟動排程器
+    # 4. 啟動排程器（含立即執行第一次 snapshot_job）
+    sched.start()
+
     yield
 
-    # 關閉時登出
+    # 關閉
+    sched.stop()
     shioaji_client.disconnect()
-    # 階段 2：停止排程器
 
 
 app = FastAPI(title="股票 Treemap Dashboard API", version="0.1.0", lifespan=lifespan)
