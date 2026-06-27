@@ -3,6 +3,8 @@
 
 # 後端
 backend/data/*.db
+backend/shioaji.log
+shioaji.log
 backend/__pycache__/
 backend/**/__pycache__/
 backend/.venv/
