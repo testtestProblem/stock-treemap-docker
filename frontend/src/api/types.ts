@@ -1,29 +1,49 @@
 // 帳務
 export interface AssetsResponse {
   nav: number
-  acc_balance: number
-  position_value: number
+  cash: number
+  stock_value: number
+  margin_pnl: number
+  short_pnl: number
+  pending_t1: number
+  pending_t2: number
   pending_settlement: number
 }
 
-export interface Position {
+export interface PositionItem {
   code: string
   name: string
-  quantity: number      // 總股數
+  position_type: string   // "現股" | "融資" | "融券"
+  quantity: number
   avg_price: number
   last_price: number
   market_value: number
   pnl: number
+  industry: string
 }
 
 // 市場
-export interface TreemapNode {
+export interface TreemapStock {
+  code: string
   name: string
-  code?: string
-  industry?: string
-  change_rate?: number
-  total_amount?: number
-  children?: TreemapNode[]
+  industry: string
+  close: number
+  change_price: number
+  change_rate: number
+  total_volume: number
+  total_amount: number
+}
+
+export interface IndustryNode {
+  name: string
+  children: TreemapStock[]
+}
+
+export interface TreemapResponse {
+  mode: string
+  name: string
+  children: IndustryNode[]
+  last_updated: string | null
 }
 
 export interface KbarItem {
@@ -33,12 +53,31 @@ export interface KbarItem {
   low: number
   close: number
   volume: number
+  amount: number
+}
+
+export interface KbarsResponse {
+  code: string
+  start: string
+  end: string
+  bars: KbarItem[]
+  from_cache: boolean
 }
 
 // 歷史績效
-export interface PerformancePoint {
-  date: string
-  nav_pct: number
-  pct_0050: number
-  pct_2330: number
+export interface PerformanceSeries {
+  dates: string[]
+  values: number[]
+}
+
+export interface PerformanceResponse {
+  nav: PerformanceSeries
+  price_0050: PerformanceSeries
+  price_2330: PerformanceSeries
+  record_count: number
+}
+
+// 自選清單
+export interface WatchlistResponse {
+  codes: string[]
 }

@@ -7,29 +7,29 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import date
 from itertools import islice
 
 from app.core.shioaji_client import get_api
+from app.db.database import SessionLocal
+from app.db.models import DailyPerformance
 from app.services import snapshot_store, stock_universe
+from app.services.account_service import get_assets
 
 logger = logging.getLogger(__name__)
 
-_BATCH_SIZE = 500        # snapshots() 單次上限
-_BATCH_DELAY_SEC = 1.5   # 批次間隔（秒），避開 5 秒 50 次限流
+_BATCH_SIZE = 500
+_BATCH_DELAY_SEC = 1.5
 
 
 def _batched(iterable, size: int):
-    """將可迭代物件切分成固定大小的批次。"""
     it = iter(iterable)
     while chunk := list(islice(it, size)):
         yield chunk
 
 
 async def snapshot_job() -> None:
-    """抓取全市場 Snapshot 並更新記憶體快取。
-
-    僅取得在 Shioaji 商品檔中存在的合約，靜默跳過查無的代號。
-    """
+    """抓取全市場 Snapshot 並更新記憶體快取。"""
     try:
         api = get_api()
     except RuntimeError:
@@ -41,7 +41,6 @@ async def snapshot_job() -> None:
         logger.warning("snapshot_job: stock_universe 尚未載入，跳過本次執行")
         return
 
-    # 取得所有可用的合約物件（過濾掉商品檔中不存在的代號）
     contracts = []
     for code in universe:
         try:
@@ -49,7 +48,7 @@ async def snapshot_job() -> None:
             if contract is not None:
                 contracts.append(contract)
         except (KeyError, AttributeError):
-            pass  # 部分代號（如特定 ETF）可能不在股票商品檔中
+            pass
 
     if not contracts:
         logger.warning("snapshot_job: 無可用合約，跳過本次執行")
@@ -85,15 +84,68 @@ async def snapshot_job() -> None:
         except Exception as e:
             logger.error("snapshot_job 批次抓取失敗：%s", e)
 
-        # 避開限流：批次間等待
         await asyncio.sleep(_BATCH_DELAY_SEC)
 
     logger.info("snapshot_job 完成，本次更新 %d 檔，快取總計 %d 檔",
                 updated, len(snapshot_store.get_all()))
 
 
-# 階段 5 實作
 async def daily_settlement_job() -> None:
-    """每日 15:40 計算 NAV 並存入 daily_performance。"""
-    # TODO 階段 5 實作
-    pass
+    """每日 15:40 計算 NAV 並存入 daily_performance。
+
+    執行前提：
+    1. Shioaji 已登入
+    2. snapshot_store 中 2330 的 close > 0（確認今日有開盤）
+
+    若 2330 未開盤（假日/停牌），靜默跳過，不寫入資料庫。
+    """
+    today = date.today().strftime("%Y-%m-%d")
+    logger.info("daily_settlement_job 開始，日期 %s", today)
+
+    # 1. 檢查 2330 是否開盤
+    snap = snapshot_store.get_all()
+    close_2330 = snap.get("2330", {}).get("close", 0)
+    if not close_2330:
+        logger.info("daily_settlement_job: 2330 收盤價為 0，今日可能未開盤，跳過")
+        return
+
+    close_0050 = snap.get("0050", {}).get("close", 0)
+    if not close_0050:
+        logger.warning("daily_settlement_job: 0050 收盤價為 0，仍繼續寫入（以 0 記錄）")
+
+    # 2. 計算 NAV
+    try:
+        api = get_api()
+        assets = get_assets(api)
+        nav = assets.nav
+    except Exception as e:
+        logger.error("daily_settlement_job: 取得 NAV 失敗：%s", e)
+        return
+
+    # 3. 寫入 daily_performance（當日已存在則 upsert）
+    db = SessionLocal()
+    try:
+        row = db.get(DailyPerformance, today)
+        if row is None:
+            row = DailyPerformance(
+                date=today,
+                nav=nav,
+                price_0050=close_0050,
+                price_2330=close_2330,
+            )
+            db.add(row)
+        else:
+            row.nav = nav
+            row.price_0050 = close_0050
+            row.price_2330 = close_2330
+
+        db.commit()
+        logger.info(
+            "daily_settlement_job 完成：date=%s nav=%.0f 0050=%.2f 2330=%.0f",
+            today, nav, close_0050, close_2330,
+        )
+    except Exception as e:
+        db.rollback()
+        logger.error("daily_settlement_job: 寫入 DB 失敗：%s", e)
+    finally:
+        db.close()

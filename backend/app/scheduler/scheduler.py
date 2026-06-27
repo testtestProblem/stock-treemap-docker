@@ -4,7 +4,7 @@ from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from app.scheduler.jobs import snapshot_job
+from app.scheduler.jobs import daily_settlement_job, snapshot_job
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +20,24 @@ def start() -> None:
         minutes=2,
         id="snapshot_job",
         replace_existing=True,
-        max_instances=1,        # 避免上一批還沒跑完就啟動下一批
+        max_instances=1,
         next_run_time=datetime.now(),
     )
-    # 階段 5：daily_settlement_job 於 15:40 觸發
+
+    # 每日結算：台灣時間 15:40，weekday=0-4（週一到週五）
+    scheduler.add_job(
+        daily_settlement_job,
+        trigger="cron",
+        hour=15,
+        minute=40,
+        day_of_week="mon-fri",
+        id="daily_settlement_job",
+        replace_existing=True,
+        max_instances=1,
+    )
+
     scheduler.start()
-    logger.info("APScheduler 已啟動，snapshot_job 每 2 分鐘執行")
+    logger.info("APScheduler 已啟動：snapshot_job 每 2 分鐘、daily_settlement_job 每日 15:40")
 
 
 def stop() -> None:
