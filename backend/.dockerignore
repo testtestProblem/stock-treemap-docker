@@ -1,0 +1,13 @@
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+tests/
+data/
+.env
+shioaji.log
+*.log
+.venv
+venv

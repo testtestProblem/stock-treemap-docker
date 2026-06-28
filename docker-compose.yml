@@ -1,0 +1,30 @@
+services:
+
+  backend:
+    build:
+      context: ./backend
+    restart: always
+    environment:
+      - TZ=Asia/Taipei
+    env_file:
+      - .env
+    volumes:
+      - ./backend/data:/app/data
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy

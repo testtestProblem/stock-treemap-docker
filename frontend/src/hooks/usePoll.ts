@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 
 /** 通用輪詢 hook：立即執行一次，之後每 intervalMs 毫秒重新抓取 */
 export function usePoll<T>(
