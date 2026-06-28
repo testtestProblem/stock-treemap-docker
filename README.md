@@ -470,8 +470,8 @@ docker compose up -d --build
 
 | 服務 | 位址 | 說明 |
 |---|---|---|
-| Dashboard | `http://<server-ip>/` | 前端 Nginx，port **80** 對外 |
-| 健康檢查 | `http://<server-ip>/health` | 經 Nginx 轉發至 backend |
+| Dashboard | `http://<server-ip>:8080/` | 前端 Nginx，host port **8080** → 容器 port 80 |
+| 健康檢查 | `http://<server-ip>:8080/health` | 經 Nginx 轉發至 backend |
 | Backend API | 僅 Docker 內部 | port **8000**，不對公網暴露 |
 
 ### 4. 使用 Docker Hub 預建 Image（可選）
@@ -499,11 +499,11 @@ docker compose up -d
 
 ```
 使用者瀏覽器
-      │  HTTP :80
+      │  HTTP :8080（host）→ :80（容器內 nginx）
       ▼
 ┌─────────────────────────────────────┐
 │  frontend 容器                        │
-│  nginx:alpine                       │
+│  nginx:alpine（容器內 listen 80）      │
 │  ├─ /          → React 靜態檔 (dist) │
 │  ├─ /api/*     → reverse proxy      │
 │  └─ /health    → reverse proxy      │
@@ -516,6 +516,7 @@ docker compose up -d
 │  python:3.10-slim + uvicorn           │
 │  FastAPI 監聽 0.0.0.0:8000           │
 │  SQLite → /app/data (volume 持久化)   │
+│  stock_index → /stock_index (volume)  │
 └─────────────────────────────────────┘
 ```
 
@@ -525,12 +526,13 @@ docker compose up -d
 |---|---|
 | **Docker Compose** | 定義 `backend` + `frontend` 兩個 service，一鍵 orchestrate |
 | **Multi-stage build**（frontend） | Stage 1 `node:20-alpine` 編譯 React；Stage 2 `nginx:alpine` 只保留靜態檔，image 更小 |
-| **Nginx reverse proxy** | 對外只開 port 80；`/api/` 轉發至 `http://backend:8000/api/`；`try_files` 支援 React SPA 路由 |
+| **Nginx reverse proxy** | host port **8080** 映射至容器 port 80；`/api/` 轉發至 `http://backend:8000/api/`；`try_files` 支援 React SPA 路由 |
 | **Healthcheck** | backend 以 `curl -f http://localhost:8000/health` 檢查；`start_period: 60s` 等待 Shioaji 初始化 |
 | **`depends_on: condition: service_healthy`** | frontend 等 backend 通過 healthcheck 後才啟動，避免 API 尚未 ready 就收到流量 |
 | **`expose: 8000`** | backend 只在 Docker 內部網路開放 port 8000，不映射到 host，降低公網暴露風險 |
-| **`ports: 80:80`** | 僅 frontend Nginx 對外，作為唯一入口 |
+| **`ports: 8080:80`** | 僅 frontend Nginx 對外（host 8080），避開 host port 80 被佔用 |
 | **Volume `./backend/data:/app/data`** | SQLite 資料庫持久化，容器重建後資料不消失 |
+| **Volume `./stock_index:/stock_index`** | 股票清單檔案掛載，backend 讀取全市場代碼與產業分類 |
 | **`env_file: .env`** | 機密以環境變數注入，不 bake 進 image |
 | **`.dockerignore`** | 排除 `.env`、`node_modules`、`__pycache__` 等，加快 build 並避免金鑰外洩 |
 | **`restart: always`** | 容器異常退出或 host 重啟後自動恢復 |
