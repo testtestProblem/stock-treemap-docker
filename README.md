@@ -5,6 +5,207 @@
 
 ---
 
+## 軟體架構
+
+### 系統全景圖
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                         使用者瀏覽器                                   │
+│                                                                      │
+│   React 19 SPA  (http://localhost:5173)                              │
+│   ┌────────────┐  ┌─────────────────┐  ┌──────────────────────────┐ │
+│   │ AssetCards │  │  PositionTable  │  │  Treemap (D3 + SVG)      │ │
+│   │  30s poll  │  │    30s poll     │  │  60s poll / zoom / pan   │ │
+│   └─────┬──────┘  └───────┬─────────┘  └────────────┬─────────────┘ │
+│         │                 │                          │               │
+│         └─────────────────┴──────────────────────────┘               │
+│                         usePoll hooks                                │
+│                         api/client.ts  (fetch + Vite proxy)         │
+└──────────────────────────────┬───────────────────────────────────────┘
+                               │ HTTP  /api/*
+                               ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                    FastAPI 後端  (port 8000)                          │
+│                                                                      │
+│  ┌─────────────────────┐     ┌────────────────────────────────────┐  │
+│  │     API Routes       │     │         Background Tasks           │  │
+│  │  routes_account.py  │     │  APScheduler                       │  │
+│  │  routes_market.py   │     │  ├─ snapshot_job  每 2 分鐘         │  │
+│  │  routes_history.py  │     │  └─ daily_settlement_job  15:40    │  │
+│  └──────────┬──────────┘     └──────────────┬─────────────────────┘  │
+│             │                               │                        │
+│  ┌──────────▼──────────────────────────────▼─────────────────────┐  │
+│  │                    Services 層                                  │  │
+│  │  account_service   market_service   history_service            │  │
+│  │  watchlist_service  stock_universe  snapshot_store             │  │
+│  └──────────┬──────────────────────────────┬─────────────────────┘  │
+│             │                              │                         │
+│  ┌──────────▼──────────┐    ┌─────────────▼──────────────────────┐  │
+│  │    shioaji_client   │    │  SQLite (SQLAlchemy)                │  │
+│  │    (Singleton)      │    │  daily_performance / kv_store       │  │
+│  └──────────┬──────────┘    └────────────────────────────────────┘  │
+└─────────────┼────────────────────────────────────────────────────────┘
+              │  shioaji SDK
+              ▼
+┌─────────────────────────────┐
+│   永豐金 Shioaji API         │
+│   行情快照 / K 線 / 持倉     │
+│   帳戶餘額 / 交割款          │
+└─────────────────────────────┘
+```
+
+---
+
+### 資料流：市場行情（Event-driven）
+
+```
+[APScheduler 每 2 min]
+        │
+        ▼
+snapshot_job()
+├── api.list_snapshots(codes)   ← Shioaji SDK（批次，最多 200 支/次）
+├── 寫入 snapshot_store (dict)  ← 記憶體，thread-safe
+└── 重複直到全市場完成
+        │
+        ▼  （前端輪詢時）
+GET /api/market/treemap?mode=market
+        │
+        ▼
+market_service.build_treemap()
+├── 讀 snapshot_store            ← 永遠只讀快取，不觸碰 Shioaji
+├── 依產業分組 → IndustryNode[]
+└── 回傳 TreemapResponse
+        │
+        ▼
+前端 D3.hierarchy + d3.treemap() → SVG 渲染
+```
+
+> **關鍵限制**：Shioaji 每 5 秒限制 50 次行情查詢。任何對 Shioaji 的直接呼叫都必須走快取。
+
+---
+
+### 資料流：帳務資訊（Request-driven）
+
+```
+GET /api/account/assets   (前端每 30s)
+        │
+        ▼
+account_service.get_assets()
+├── api.account_balance()        ← Shioaji（現金 + 融資保證金）
+├── api.list_positions(Unit.Share)
+│   └── _merge_positions()       ← (code, cond) 為 key 合併整股零股
+├── api.settlements()            ← T+1 / T+2 待交割款
+│
+└── NAV = cash + stock_value + margin_pnl + short_pnl + pending
+```
+
+> **已知陷阱**：`Unit.Common` 與 `Unit.Share` 回傳相同整張部位。只能用 `Unit.Share`，否則市值翻倍。
+
+---
+
+### 資料流：每日績效（排程 + 查詢）
+
+```
+[APScheduler 15:40 每週一至週五]
+        │
+        ▼
+daily_settlement_job()
+├── 確認 snapshot_store["2330"]["close"] 有值（排除未開盤日）
+├── account_service.get_assets()  → NAV
+├── snapshot_store 取 0050 / 2330 收盤價
+└── upsert → SQLite daily_performance
+
+GET /api/history/performance
+        │
+        ▼
+history_service.get_performance()
+├── 查 daily_performance 全部記錄
+├── _normalize()   (value[i] / value[0] - 1) × 100
+└── 回傳 {nav, price_0050, price_2330} 各含 dates + values
+```
+
+---
+
+### 前端狀態管理
+
+```
+DashboardLayout（頂層）
+├── useAssets()    → { data, error, loading, refresh }   30s
+├── usePositions() → { data, error, loading, refresh }   30s
+├── useTreemap()   → { data, error, loading, refresh }   60s
+└── usePerformance() → { data, error, loading, refresh } 5min
+        │
+        ▼
+所有 hook 底層共用 usePoll(fetcher, intervalMs)
+    ├── 立即執行一次
+    ├── setInterval 定期重跑
+    ├── cancelled flag 防止 race condition
+    └── refresh() 強制立即重跑
+```
+
+---
+
+### Treemap 渲染管線
+
+```
+TreemapResponse（後端 JSON）
+        │
+        ▼
+d3.hierarchy(data).sum(d => d[sizeBy])   ← sizeBy: total_amount | total_volume
+        │
+        ▼
+d3.treemap().size([w, h]).paddingOuter(2).paddingInner(1)
+        │  → HierarchyRectangularNode[]（含 x0 y0 x1 y1）
+        ▼
+useMemo → Tile[]                          ← 只在 data / dims / sizeBy 改變時重算
+        │
+        ▼
+React SVG 渲染
+├── <g transform={d3ZoomTransform}>       ← zoom/pan 只改這一層
+│   └── <g translate(x0,y0)>
+│       ├── <rect fill={treemapColor(rate)} onMouseEnter={setHoveredTile} />
+│       └── tileLayout(w, h, transform.k) → 動態字體 + 顯示門檻
+└── <TreemapTooltip> via createPortal     ← 不受 overflow-hidden 裁切
+```
+
+---
+
+### 問題快速定位指南
+
+| 症狀 | 最可能原因 | 查哪裡 |
+|---|---|---|
+| Treemap 全部空白 | snapshot_store 尚未填入 | `GET /api/debug/snapshot-status` |
+| 格子全部灰色 | change_rate 全為 0（盤後 / 未開盤） | snapshot_store 的 close / reference_price |
+| NAV 數字異常 | 持倉合併邏輯 | `GET /api/debug/positions/breakdown` |
+| NAV 市值翻倍 | 誤用 Unit.Common | `account_service._merge_positions()` |
+| Shioaji 429 / 被鎖 | snapshot_job 頻率太高或有直接呼叫 | `scheduler/jobs.py` 批次間距 |
+| K 線回傳空陣列 | 日期超過 28 天（Shioaji 30 天限制） | `market_service.get_kbars()` 截斷邏輯 |
+| 前端 API 404 | Vite proxy 未對應路徑 | `frontend/vite.config.ts` proxy 設定 |
+| 前端資料不更新 | usePoll 的 interval 或 cancelled flag | `src/hooks/usePoll.ts` |
+| Tooltip 不出現 | hoveredTile 未設定 / portal 目標不存在 | `Treemap.tsx` onMouseEnter；`TreemapTooltip.tsx` |
+| 動畫不播放 | motion/react 版本不符或 AnimatePresence key | `AssetCards.tsx` / `PositionTable.tsx` |
+| 績效圖空白 | daily_performance 無資料 | `POST /api/history/trigger-daily` 手動補入 |
+| 後端啟動失敗 | `.env` 缺少金鑰 / port 已佔用 | `backend/.env`；`netstat -ano | findstr 8000` |
+
+---
+
+### 關鍵設計限制（工程師必讀）
+
+1. **Shioaji 不支援多程式同時登入**：`shioaji_client.py` 用 Singleton 保護，重啟後端前必須確認舊程序已終止。
+
+2. **Unit.Common vs Unit.Share 重疊**：整張部位在兩個 Unit 都會出現。程式碼只取 `Unit.Share`，任何修改都不能引入 `Unit.Common`。
+
+3. **acc_balance 含融資保證金**：`acc_balance` ≠ 純現金。融資部位對 NAV 的貢獻只有 `pnl`，不能再加入 `market_value`，否則重複計算。
+
+4. **Shioaji K 線 ≤ 28 天**：官方文件說 30 天，但實際邊界日曆計算約 28 天。`get_kbars()` 已自動截斷。
+
+5. **snapshot_job 批次延遲**：全市場約 1800 支股票，每批 200 支，共 9 批，每批之間有 0.5s 延遲。啟動後約 5 秒才有完整資料。
+
+6. **daily_settlement_job 依賴快照**：該 job 從 `snapshot_store` 讀取 0050 / 2330 收盤價。若 15:40 執行時快照過舊（snapshot_job 異常），績效資料會有誤。
+
+---
+
 ## 技術棧
 
 | 層 | 技術 | 說明 |
