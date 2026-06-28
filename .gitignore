@@ -20,3 +20,7 @@ frontend/.vite/
 # 系統
 .DS_Store
 Thumbs.db
+
+# Oracle Cloud SSH 金鑰（勿提交）
+oracle_cloud/
+*.key
