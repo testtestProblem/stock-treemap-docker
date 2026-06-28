@@ -429,6 +429,125 @@ conda run -n stock_treemap pytest backend/tests/ -v
 
 ---
 
+## Docker 部署
+
+適合部署至雲端 VPS / Oracle Cloud 等環境，無需在本機安裝 Python 或 Node.js。
+
+### 環境需求
+
+- [Docker](https://docs.docker.com/get-docker/) 20.10+
+- [Docker Compose](https://docs.docker.com/compose/) V2（`docker compose` 指令）
+
+### 1. 設定環境變數
+
+在**專案根目錄**建立 `.env`（此檔已在 `.gitignore`，不會被 commit）：
+
+```env
+SJ_API_KEY=your_api_key
+SJ_SEC_KEY=your_secret_key
+SJ_PRODUCTION=true
+```
+
+> Docker Compose 透過 `env_file: .env` 將金鑰注入 backend 容器，**不會**把 `.env` 打包進 image（`backend/.dockerignore` 已排除）。
+
+### 2. 一鍵建置並啟動
+
+在專案根目錄執行：
+
+```bash
+docker compose up -d --build
+```
+
+| 指令 | 說明 |
+|---|---|
+| `docker compose ps` | 查看容器狀態 |
+| `docker compose logs -f backend` | 查看後端 log |
+| `docker compose logs -f frontend` | 查看前端 log |
+| `docker compose down` | 停止並移除容器 |
+| `docker compose up -d --build` | 程式碼更新後重新建置 |
+
+### 3. 存取網址
+
+| 服務 | 位址 | 說明 |
+|---|---|---|
+| Dashboard | `http://<server-ip>/` | 前端 Nginx，port **80** 對外 |
+| 健康檢查 | `http://<server-ip>/health` | 經 Nginx 轉發至 backend |
+| Backend API | 僅 Docker 內部 | port **8000**，不對公網暴露 |
+
+### 4. 使用 Docker Hub 預建 Image（可選）
+
+若已 push 至 Docker Hub，可在雲端 server 直接使用預建 image，無需 `--build`：
+
+```yaml
+# docker-compose.yml 範例（改用遠端 image）
+services:
+  backend:
+    image: testtest123123123/stock-treemap-backend:latest
+    # ...其餘設定同 repo 內 docker-compose.yml
+
+  frontend:
+    image: testtest123123123/stock-treemap-frontend:latest
+    # ...
+```
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+### Docker 架構概覽
+
+```
+使用者瀏覽器
+      │  HTTP :80
+      ▼
+┌─────────────────────────────────────┐
+│  frontend 容器                        │
+│  nginx:alpine                       │
+│  ├─ /          → React 靜態檔 (dist) │
+│  ├─ /api/*     → reverse proxy      │
+│  └─ /health    → reverse proxy      │
+└──────────────┬──────────────────────┘
+               │  Docker 內部網路
+               │  http://backend:8000
+               ▼
+┌─────────────────────────────────────┐
+│  backend 容器                         │
+│  python:3.10-slim + uvicorn           │
+│  FastAPI 監聽 0.0.0.0:8000           │
+│  SQLite → /app/data (volume 持久化)   │
+└─────────────────────────────────────┘
+```
+
+### Docker 技術說明
+
+| 技術 / 設定 | 用途 |
+|---|---|
+| **Docker Compose** | 定義 `backend` + `frontend` 兩個 service，一鍵 orchestrate |
+| **Multi-stage build**（frontend） | Stage 1 `node:20-alpine` 編譯 React；Stage 2 `nginx:alpine` 只保留靜態檔，image 更小 |
+| **Nginx reverse proxy** | 對外只開 port 80；`/api/` 轉發至 `http://backend:8000/api/`；`try_files` 支援 React SPA 路由 |
+| **Healthcheck** | backend 以 `curl -f http://localhost:8000/health` 檢查；`start_period: 60s` 等待 Shioaji 初始化 |
+| **`depends_on: condition: service_healthy`** | frontend 等 backend 通過 healthcheck 後才啟動，避免 API 尚未 ready 就收到流量 |
+| **`expose: 8000`** | backend 只在 Docker 內部網路開放 port 8000，不映射到 host，降低公網暴露風險 |
+| **`ports: 80:80`** | 僅 frontend Nginx 對外，作為唯一入口 |
+| **Volume `./backend/data:/app/data`** | SQLite 資料庫持久化，容器重建後資料不消失 |
+| **`env_file: .env`** | 機密以環境變數注入，不 bake 進 image |
+| **`.dockerignore`** | 排除 `.env`、`node_modules`、`__pycache__` 等，加快 build 並避免金鑰外洩 |
+| **`restart: always`** | 容器異常退出或 host 重啟後自動恢復 |
+| **`TZ=Asia/Taipei`** | 確保 APScheduler 每日 15:40 排程使用台灣時區 |
+
+### 相關檔案
+
+| 檔案 | 說明 |
+|---|---|
+| `docker-compose.yml` | 服務定義、healthcheck、volume、port 映射 |
+| `backend/Dockerfile` | Python 3.10 + uvicorn，內建 HEALTHCHECK |
+| `frontend/Dockerfile` | Node build → nginx:alpine 兩階段建置 |
+| `frontend/nginx.conf` | SPA 路由、API 反向代理、proxy header |
+| `backend/.dockerignore` / `frontend/.dockerignore` | 建置 context 排除清單 |
+
+---
+
 ## 測試指南
 
 ### 一、單元測試（不需要 Shioaji 連線）
@@ -661,5 +780,5 @@ Recharts 折線圖，對比「我的資產」、「0050」、「2330」累積報
 - [ ] Treemap 點擊下鑽（產業群組 → 個股）
 - [ ] WebSocket 即時推播（取代輪詢，降低延遲）
 - [ ] 深色 / 淺色主題切換
-- [ ] Docker Compose 一鍵部署
+- [x] Docker Compose 一鍵部署（見上方 [Docker 部署](#docker-部署)）
 - [ ] iOS / Android 觸控縮放測試與優化
