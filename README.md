@@ -429,7 +429,192 @@ conda run -n stock_treemap pytest backend/tests/ -v
 
 ---
 
-## Dashboard 功能一覽
+## 測試指南
+
+### 一、單元測試（不需要 Shioaji 連線）
+
+所有後端單元測試使用 `unittest.mock` 隔離 Shioaji SDK，可在無網路環境直接執行。
+
+#### 執行全部測試
+
+```bash
+conda activate stock_treemap
+pytest backend/tests/ -v
+```
+
+預期輸出：**30 passed**
+
+#### 各測試檔說明
+
+| 測試檔 | 測試項目 | 核心驗證邏輯 |
+|---|---|---|
+| `test_account_service.py` | NAV 計算、持倉合併 | 純現股 NAV、融資只算 pnl、無持倉、同代號分批買進加權平均 |
+| `test_market_service.py` | Treemap 組裝、K 線快取 | 產業分組、總成交額排序、watchlist 過濾、TTL 快取命中 |
+| `test_history_service.py` | 績效標準化計算 | `_normalize()` 數學公式、空/單筆/多筆資料、日期順序 |
+| `test_stock_universe.py` | 股票清單解析 | 上市/上櫃/ETF 解析正確、代碼查詢返回名稱與產業 |
+
+#### 單獨執行某一測試
+
+```bash
+# 只跑帳務測試
+pytest backend/tests/test_account_service.py -v
+
+# 只跑某個 test function
+pytest backend/tests/test_account_service.py::test_nav_with_margin -v
+
+# 顯示 print 輸出
+pytest backend/tests/ -v -s
+```
+
+---
+
+### 二、API 端點測試（需後端運行中）
+
+#### 環境確認
+
+```powershell
+# 確認後端正常
+Invoke-RestMethod http://localhost:8000/health
+# 預期：{ "status": "ok" }
+```
+
+#### 帳務 API
+
+```powershell
+# 1. 真實資產 NAV
+Invoke-RestMethod http://localhost:8000/api/account/assets | ConvertTo-Json
+# 驗收：nav = cash + stock_value + margin_pnl + short_pnl + pending_settlement
+
+# 2. 持倉列表
+Invoke-RestMethod http://localhost:8000/api/account/positions | ConvertTo-Json
+# 驗收：每筆含 code, name, position_type(現股/融資/融券), quantity, pnl
+
+# 3. 手動驗算 NAV（以輸出值）
+# nav == cash + stock_value + margin_pnl + short_pnl + pending_settlement
+```
+
+#### 市場 API
+
+```powershell
+# 4. 全市場 Treemap
+Invoke-RestMethod "http://localhost:8000/api/market/treemap?mode=market" | ConvertTo-Json -Depth 3
+# 驗收：children 為產業節點，每個節點的 children 為股票；last_updated 為最近快照時間
+
+# 5. 自選清單 Treemap
+Invoke-RestMethod "http://localhost:8000/api/market/treemap?mode=watchlist" | ConvertTo-Json -Depth 3
+
+# 6. 取得自選清單
+Invoke-RestMethod http://localhost:8000/api/market/watchlist | ConvertTo-Json
+
+# 7. 更新自選清單（PUT）
+$body = '{"codes":["2330","0050","00673R"]}'
+Invoke-RestMethod -Method Put -Uri http://localhost:8000/api/market/watchlist `
+  -ContentType "application/json" -Body $body | ConvertTo-Json
+
+# 8. K 線（最近 28 天）
+Invoke-RestMethod "http://localhost:8000/api/market/kbars?code=2330" | ConvertTo-Json
+# 驗收：bars 陣列不為空，每筆含 ts, open, high, low, close, volume
+
+# 9. K 線快取測試（連打兩次，第二次 from_cache 應為 true）
+Invoke-RestMethod "http://localhost:8000/api/market/kbars?code=2330" | Select-Object from_cache
+Invoke-RestMethod "http://localhost:8000/api/market/kbars?code=2330" | Select-Object from_cache
+```
+
+#### 歷史績效 API
+
+```powershell
+# 10. 查詢績效
+Invoke-RestMethod http://localhost:8000/api/history/performance | ConvertTo-Json
+# 若 record_count = 0，代表尚無歷史資料
+
+# 11. 手動觸發每日結算（補入今日資料）
+Invoke-RestMethod -Method Post http://localhost:8000/api/history/trigger-daily | ConvertTo-Json
+# 再次查詢確認 record_count 增加 1
+Invoke-RestMethod http://localhost:8000/api/history/performance | Select-Object record_count
+```
+
+---
+
+### 三、Debug API（快照與持倉診斷）
+
+```powershell
+# 快照載入狀態（確認股數量與最後更新時間）
+Invoke-RestMethod http://localhost:8000/api/debug/snapshot-status | ConvertTo-Json
+
+# 持倉原始資料（Unit.Common + Unit.Share 各幾筆）
+Invoke-RestMethod http://localhost:8000/api/debug/positions/raw | ConvertTo-Json
+
+# 持倉詳細分解（每筆的 cond / market_value / pnl）
+Invoke-RestMethod http://localhost:8000/api/debug/positions/breakdown | ConvertTo-Json
+```
+
+---
+
+### 四、資料正確性驗證清單
+
+#### NAV 驗算
+
+1. 呼叫 `GET /api/account/assets` 取得各欄位
+2. 手動計算：`nav = cash + stock_value + margin_pnl + short_pnl + pending_settlement`
+3. 與回傳的 `nav` 比對，誤差應 < 1 元（浮點精度）
+
+```powershell
+$a = Invoke-RestMethod http://localhost:8000/api/account/assets
+$calc = $a.cash + $a.stock_value + $a.margin_pnl + $a.short_pnl + $a.pending_settlement
+Write-Host "API NAV: $($a.nav)"
+Write-Host "計算 NAV: $calc"
+Write-Host "差異: $([Math]::Abs($a.nav - $calc))"
+```
+
+#### 持倉市值驗算
+
+```powershell
+$pos = Invoke-RestMethod http://localhost:8000/api/account/positions
+# 現股市值加總
+$cashValue = ($pos | Where-Object { $_.position_type -eq "現股" } |
+              Measure-Object -Property market_value -Sum).Sum
+Write-Host "現股市值加總: $cashValue"
+# 應與 assets.stock_value 相符
+```
+
+#### Treemap 資料完整性
+
+```powershell
+$tm = Invoke-RestMethod "http://localhost:8000/api/market/treemap?mode=market"
+$totalStocks = ($tm.children | ForEach-Object { $_.children.Count } |
+                Measure-Object -Sum).Sum
+Write-Host "Treemap 股票總數: $totalStocks"
+# 全市場通常 1600–1900 支（含上市/上櫃/ETF）
+```
+
+#### 績效標準化驗算
+
+```powershell
+$p = Invoke-RestMethod http://localhost:8000/api/history/performance
+if ($p.record_count -ge 2) {
+    $nav0 = $p.nav.values[0]
+    $nav1 = $p.nav.values[1]
+    Write-Host "第一筆應為 0.0：$nav0"
+    Write-Host "第二筆資料值：$nav1 %"
+}
+```
+
+---
+
+### 五、測試覆蓋範圍說明
+
+| 層 | 測試方式 | 覆蓋 |
+|---|---|---|
+| NAV 公式 | 單元測試 + 手動 API 驗算 | ✅ 有自動化 |
+| 持倉合併 | 單元測試（4 個 case） | ✅ 有自動化 |
+| Treemap 組裝 | 單元測試 | ✅ 有自動化 |
+| K 線快取 | 單元測試 + API 連打兩次 | ✅ 有自動化 |
+| 歷史標準化 | 單元測試（5 個 case） | ✅ 有自動化 |
+| Shioaji 連線 | 手動（需真實金鑰） | ⚠️ 僅手動 |
+| 排程執行 | 手動 trigger-daily | ⚠️ 僅手動 |
+| 前端渲染 | 瀏覽器目視 | ⚠️ 僅目視 |
+
+---
 
 ### 頂部資產卡片（30 秒自動更新）
 
