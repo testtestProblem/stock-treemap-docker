@@ -8,6 +8,13 @@ export interface AssetsResponse {
   pending_t1: number
   pending_t2: number
   pending_settlement: number
+  // 選填副欄位（後端擴充後才有）
+  day_pnl?: number | null
+  day_pnl_rate?: number | null
+  margin_value?: number | null
+  short_value?: number | null
+  unrealized_pnl?: number | null
+  realized_pnl_today?: number | null
 }
 
 export interface PositionItem {

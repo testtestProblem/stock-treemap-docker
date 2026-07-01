@@ -84,17 +84,18 @@
 **檔案**：修改 `frontend/src/components/cards/AssetCards.tsx`
 
 **步驟**：
-- [ ] 卡片 1 NAV：主 `nav`，副 當日損益 / 當日損益 %（`day_pnl` 有值才顯示，否則「—」）。
-- [ ] 卡片 2 現金：主 `cash`，副 融資損益 `margin_pnl` / 融券損益 `short_pnl`。
-- [ ] 卡片 3 現股市值：主 `stock_value`，副 融資市值 / 融券市值（無值則「—」）。
-- [ ] 卡片 4 未實現損益：主 `unrealized_pnl`，副 今日實現 `realized_pnl_today`（無值則「—」）。
-- [ ] 卡片 5 待交割（Donut）：Recharts `PieChart` 以 `pending_t1`/`pending_t2` 佔比，中心顯示 `pending_settlement`。
-- [ ] 損益數字統一套 `pnlColor()`（綠/紅/灰）；`loading` skeleton；`error` 保留舊值。
+- [x] 卡片 1 NAV：主 `nav`，副 當日損益 / 當日損益 %（`day_pnl` 有值才顯示，否則「—」）。
+- [x] 卡片 2 現金：主 `cash`，副 融資損益 `margin_pnl` / 融券損益 `short_pnl`。
+- [x] 卡片 3 現股市值：主 `stock_value`，副 融資市值 / 融券市值（無值則「—」）。
+- [x] 卡片 4 未實現損益：主 `unrealized_pnl`，副 今日實現 `realized_pnl_today`（無值則「—」）。
+- [x] 卡片 5 待交割（Donut）：Recharts `PieChart` 以 `pending_t1`/`pending_t2` 佔比，中心顯示 `pending_settlement`。
+- [x] 損益數字統一套 `pnlClass()`（綠/紅/灰）；`loading` skeleton；`error` 橫幅。
 
 **DoD**：
-- [ ] 顯示 5 張卡片，RWD 下能換行不擠壓。
-- [ ] Donut 佔比正確、中心數字等於 T+1+T+2。
-- [ ] 後端無副欄位時，副資訊顯示「—」不報錯。
+- [x] 顯示 5 張卡片，RWD 下能換行不擠壓（`grid-cols-2 md:grid-cols-3 lg:grid-cols-5`）。
+- [x] Donut 佔比正確、中心數字等於 `pending_settlement`。
+- [x] 後端無副欄位時，副資訊顯示「—」不報錯。
+- [x] `npm run lint` + `npm run build` 通過。
 
 ---
 

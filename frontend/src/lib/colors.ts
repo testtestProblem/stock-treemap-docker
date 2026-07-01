@@ -11,6 +11,13 @@ export function changeColor(rate: number): string {
   return COLORS.flat
 }
 
+/** 損益著色：正數綠、負數紅、零灰（用於 CSS className） */
+export function pnlClass(n: number): string {
+  if (n > 0) return 'text-green-400'
+  if (n < 0) return 'text-red-400'
+  return 'text-gray-400'
+}
+
 /** 依漲跌幅深淺計算 Treemap 格子顏色（±10% 為上下限） */
 export function treemapColor(rate: number): string {
   const clamped = Math.max(-10, Math.min(10, rate))
