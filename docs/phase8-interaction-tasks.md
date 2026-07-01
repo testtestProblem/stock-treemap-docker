@@ -59,19 +59,20 @@
 - 修改 `frontend/src/components/layout/DashboardLayout.tsx`（改用 `<Header/>`）
 
 **步驟**：
-- [ ] `types.ts` 新增 `ApiStatusResponse { connected, usage_pct, simulation, stock_account, last_login }`。
-- [ ] `client.ts` 新增 `getStatus()`、`reconnect()`（POST）、`exportDb()`（回 blob）。
-- [ ] `hooks/index.ts` 新增 `useApiStatus()`（`usePoll`，15s）。
-- [ ] `ApiStatusBadge.tsx`：顯示 `永豐金 API: {usage_pct}%` + 🟢/🔴 燈號；`usage_pct ≥ 90` 轉黃/紅。
-- [ ] `Header.tsx`：標題（點擊 `treemapRef.reset()`）、`ApiStatusBadge`、[重新連線] 按鈕（loading + toast）、最後更新時間、[重新整理 ↻]、[下載]。
-- [ ] 下載：`exportDb()` → `URL.createObjectURL(blob)` → 觸發 `<a download="app.db">`。
-- [ ] `connected === false` 時，狀態列背景轉紅（`bg-red-900/40`）。
+- [x] `types.ts` 新增 `ApiStatusResponse { connected, usage_pct, simulation, stock_account, last_login }`。
+- [x] `client.ts` 新增 `getStatus()`、`reconnect()`（POST）、`exportDb()`（回 blob）。
+- [x] `hooks/index.ts` 新增 `useApiStatus()`（`usePoll`，15s）。
+- [x] `ApiStatusBadge.tsx`：顯示 `永豐金 API: {usage_pct}%` + 🟢/🔴 燈號；`usage_pct ≥ 90` 轉黃/紅。
+- [x] `Header.tsx`：標題（點擊 `treemapRef.reset()`）、`ApiStatusBadge`、[重新連線] 按鈕（loading + toast）、最後更新時間、[重新整理 ↻]、[下載]。
+- [x] 下載：`exportDb()` → `URL.createObjectURL(blob)` → 觸發 `<a download="app.db">`。
+- [x] `connected === false` 時，狀態列背景轉紅（`bg-red-900/40`）。
 
 **DoD**：
-- [ ] Header 顯示即時使用量與燈號，15s 自動更新。
-- [ ] 點 [重新連線] 會呼叫後端並在完成後刷新狀態。
-- [ ] 點 [下載] 會下載 `app.db` 檔案。
-- [ ] 斷線時（可手動停後端）燈號轉紅、背景轉紅。
+- [x] Header 顯示即時使用量與燈號，15s 自動更新。
+- [x] 點 [重新連線] 會呼叫後端並在完成後刷新狀態。
+- [x] 點 [下載] 會下載 `app.db` 檔案。
+- [x] 斷線時（可手動停後端）燈號轉紅、背景轉紅。
+- [x] `npm run lint` + `npm run build` 通過（Node v22.23.1）。
 
 ---
 

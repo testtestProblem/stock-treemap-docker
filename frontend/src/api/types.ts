@@ -81,3 +81,18 @@ export interface PerformanceResponse {
 export interface WatchlistResponse {
   codes: string[]
 }
+
+// API 狀態（Task 8-1）
+export interface ApiStatusResponse {
+  connected: boolean
+  usage_pct: number
+  simulation?: boolean
+  stock_account?: string | null
+  last_login?: string | null
+  accounts?: string[]
+}
+
+export interface ReconnectResponse {
+  connected: boolean
+  message: string
+}

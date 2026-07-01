@@ -1,10 +1,10 @@
 import { useState, useRef } from 'react'
-import { RefreshCw } from 'lucide-react'
 import AssetCards from '../cards/AssetCards'
 import PositionTable from '../positions/PositionTable'
 import Treemap, { type SizeBy, type TreemapHandle } from '../treemap/Treemap'
 import PerformanceChart from '../performance/PerformanceChart'
-import { useAssets, usePositions, useTreemap, usePerformance } from '../../hooks'
+import Header from './Header'
+import { useAssets, usePositions, useTreemap, usePerformance, useApiStatus } from '../../hooks'
 
 type TreemapMode = 'market' | 'watchlist'
 
@@ -55,6 +55,7 @@ export default function DashboardLayout() {
   const positions   = usePositions()
   const treemap     = useTreemap(mode)
   const performance = usePerformance()
+  const apiStatus   = useApiStatus()
 
   const lastUpdate = assets.data
     ? new Date().toLocaleTimeString('zh-TW', {
@@ -62,34 +63,22 @@ export default function DashboardLayout() {
       })
     : null
 
+  const handleRefreshAll = () => {
+    assets.refresh()
+    positions.refresh()
+    treemap.refresh()
+    apiStatus.refresh()
+  }
+
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col gap-3 p-4">
 
-      {/* ── Header ─────────────────────────────────────────────── */}
-      <header className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span
-            className="text-lg font-bold tracking-wide text-white cursor-pointer hover:text-blue-300 transition-colors"
-            title="點擊重設 Treemap 視角"
-            onClick={() => treemapRef.current?.reset()}
-          >
-            台股 Treemap Dashboard
-          </span>
-          <span className="text-xs text-gray-600 border border-gray-700 rounded px-1.5 py-0.5">
-            永豐金 Shioaji
-          </span>
-        </div>
-        <div className="flex items-center gap-3 text-xs text-gray-500">
-          {lastUpdate && <span>更新：{lastUpdate}</span>}
-          <button
-            onClick={() => { assets.refresh(); positions.refresh(); treemap.refresh() }}
-            className="flex items-center gap-1 text-gray-400 hover:text-gray-200 transition-colors"
-          >
-            <RefreshCw size={12} />
-            重新整理
-          </button>
-        </div>
-      </header>
+      <Header
+        onResetTreemap={() => treemapRef.current?.reset()}
+        lastUpdate={lastUpdate}
+        onRefreshAll={handleRefreshAll}
+        apiStatus={apiStatus}
+      />
 
       {/* ── 資產卡片 ────────────────────────────────────────────── */}
       <AssetCards data={assets.data} loading={assets.loading} error={assets.error} />
