@@ -3,6 +3,7 @@
 GET  /api/market/treemap             — 產業分層 Treemap（讀快取）
 GET  /api/market/kbars               — 個股 K 線（TTL 快取）
 GET  /api/market/snapshot-status     — 快照狀態（除錯用）
+GET  /api/market/universe            — 全市場代號清單（供前端模糊搜尋）
 GET  /api/market/watchlist           — 讀取自選清單
 PUT  /api/market/watchlist           — 更新自選清單
 """
@@ -23,6 +24,26 @@ def snapshot_status():
     status = snapshot_store.get_status()
     status["universe_total"] = len(stock_universe.get_universe())
     return status
+
+
+@router.get("/universe")
+def get_universe():
+    """回傳全市場代號清單（供前端模糊搜尋輸入列使用）。
+
+    格式：[{ code, name, industry, market, is_etf }, ...]
+    資料來自啟動時載入的 stock_index/*.txt，不打 Shioaji。
+    """
+    universe = stock_universe.get_universe()
+    return [
+        {
+            "code": code,
+            "name": info["name"],
+            "industry": info["industry"],
+            "market": info["market"],
+            "is_etf": info["is_etf"],
+        }
+        for code, info in universe.items()
+    ]
 
 
 @router.get("/treemap", response_model=TreemapResponse)

@@ -10,6 +10,7 @@ from app.db.init_db import init_db
 from app.scheduler import scheduler as sched
 from app.services.stock_universe import load_universe
 from app.api.routes_account import router as account_router
+from app.api.routes_admin import router as admin_router
 from app.api.routes_debug import router as debug_router
 from app.api.routes_history import router as history_router
 from app.api.routes_market import router as market_router
@@ -60,6 +61,7 @@ app.include_router(debug_router)
 app.include_router(account_router)
 app.include_router(market_router)
 app.include_router(history_router)
+app.include_router(admin_router)
 
 
 @app.get("/health")

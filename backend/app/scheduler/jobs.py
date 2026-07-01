@@ -10,7 +10,7 @@ import logging
 from datetime import date
 from itertools import islice
 
-from app.core.shioaji_client import get_api
+from app.core.shioaji_client import get_api, record_api_calls
 from app.db.database import SessionLocal
 from app.db.models import DailyPerformance
 from app.services import snapshot_store, stock_universe
@@ -59,6 +59,7 @@ async def snapshot_job() -> None:
 
     for batch in _batched(contracts, _BATCH_SIZE):
         try:
+            record_api_calls(len(batch))
             snapshots = api.snapshots(batch)
             batch_data: dict[str, dict] = {}
             for snap in snapshots:

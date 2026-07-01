@@ -8,8 +8,14 @@ router = APIRouter(prefix="/api/debug", tags=["debug"])
 
 @router.get("/status")
 def get_status():
-    """回傳 Shioaji 連線狀態與帳戶資訊。"""
+    """回傳 Shioaji 連線狀態、API 用量 % 與最後登入時間。"""
     return shioaji_client.get_status()
+
+
+@router.post("/reconnect")
+def reconnect():
+    """手動觸發 Shioaji 重新登入（disconnect → connect）。"""
+    return shioaji_client.reconnect()
 
 
 @router.get("/positions/raw")

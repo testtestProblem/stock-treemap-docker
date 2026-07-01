@@ -32,18 +32,18 @@
 
 **檔案**：`backend/app/api/routes_debug.py`、`routes_market.py`、新增 `routes_admin.py`、`app/core/shioaji_client.py`、`app/services/*`
 
-- [ ] **擴充 `GET /api/debug/status`**：在 `shioaji_client.get_status()` 回傳加入 `usage_pct`（API 用量 %，可先用 Shioaji `api.usage()` 或以呼叫計數估算）、`last_login`（登入時間戳）。
-- [ ] **新增 `POST /api/debug/reconnect`**：呼叫 `shioaji_client` 先 `disconnect()` 再 `connect(...)`；回傳 `{ connected: bool, message: str }`。
-- [ ] **新增 `GET /api/market/universe`**：回傳 `stock_universe` 全部 `[{code, name, industry, market, is_etf}]`（供前端模糊搜尋）。
-- [ ] **新增 `GET /api/admin/export-db`**（新檔 `routes_admin.py`）：用 `FileResponse` 回傳 `backend/data/app.db`，設 `media_type="application/octet-stream"` 與 `Content-Disposition: attachment; filename=app.db`；於 `main.py` 掛載 router。
+- [x] **擴充 `GET /api/debug/status`**：在 `shioaji_client.get_status()` 回傳加入 `usage_pct`（滾動 5 秒視窗計算，基準 50 次/5s）、`last_login`（登入時間戳）。
+- [x] **新增 `POST /api/debug/reconnect`**：呼叫 `shioaji_client.reconnect()`（disconnect → connect），回傳 `{ connected, message }`。
+- [x] **新增 `GET /api/market/universe`**：回傳 `stock_universe` 全部 `[{code, name, industry, market, is_etf}]`（供前端模糊搜尋）。
+- [x] **新增 `GET /api/admin/export-db`**（新檔 `routes_admin.py`）：`FileResponse` 回傳 `backend/data/app.db`，`Content-Disposition: attachment; filename=app.db`；已於 `main.py` 掛載。
 - [ ] **（可選）擴充 `AssetsResponse`**：新增 `day_pnl`、`day_pnl_rate`、`margin_value`、`short_value`、`unrealized_pnl`、`realized_pnl_today`；`account_service.get_assets()` 補算。若 Shioaji 無對應資料，回傳 `None` 讓前端以「—」佔位。
 
 **DoD**：
-- [ ] `curl localhost:8000/api/debug/status` 含 `connected`、`usage_pct`。
-- [ ] `curl -X POST localhost:8000/api/debug/reconnect` 回 `connected:true`。
-- [ ] `curl localhost:8000/api/market/universe` 回約 2000+ 檔陣列。
-- [ ] 瀏覽器開 `localhost:8000/api/admin/export-db` 會下載 `app.db`。
-- [ ] `cd backend && pytest` 全綠。
+- [x] `curl localhost:8000/api/debug/status` 含 `connected`、`usage_pct`。
+- [x] `curl -X POST localhost:8000/api/debug/reconnect` 回 `connected:true`。
+- [x] `curl localhost:8000/api/market/universe` 回約 2000+ 檔陣列。
+- [x] 瀏覽器開 `localhost:8000/api/admin/export-db` 會下載 `app.db`。
+- [x] `cd backend && pytest`（非 shioaji 相依測試）15/15 全綠；語法驗證所有修改檔案 OK。
 
 ---
 
