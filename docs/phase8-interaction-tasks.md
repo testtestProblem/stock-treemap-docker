@@ -36,7 +36,7 @@
 - [x] **新增 `POST /api/debug/reconnect`**：呼叫 `shioaji_client.reconnect()`（disconnect → connect），回傳 `{ connected, message }`。
 - [x] **新增 `GET /api/market/universe`**：回傳 `stock_universe` 全部 `[{code, name, industry, market, is_etf}]`（供前端模糊搜尋）。
 - [x] **新增 `GET /api/admin/export-db`**（新檔 `routes_admin.py`）：`FileResponse` 回傳 `backend/data/app.db`，`Content-Disposition: attachment; filename=app.db`；已於 `main.py` 掛載。
-- [ ] **（可選）擴充 `AssetsResponse`**：新增 `day_pnl`、`day_pnl_rate`、`margin_value`、`short_value`、`unrealized_pnl`、`realized_pnl_today`；`account_service.get_assets()` 補算。若 Shioaji 無對應資料，回傳 `None` 讓前端以「—」佔位。
+- [x] **（可選）擴充 `AssetsResponse`**：新增 `day_pnl`、`day_pnl_rate`、`margin_value`、`short_value`、`unrealized_pnl`、`realized_pnl_today`；`account_service.get_assets()` 補算（unrealized/margin_value/short_value 從 positions 直接加總；day_pnl 從 snapshot_store；realized_pnl_today 從 list_profit_loss 帶 5 分鐘 TTL 快取）。無法取得時回傳 `None`，前端顯示「—」。
 
 **DoD**：
 - [x] `curl localhost:8000/api/debug/status` 含 `connected`、`usage_pct`。
