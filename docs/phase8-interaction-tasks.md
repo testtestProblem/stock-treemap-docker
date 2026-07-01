@@ -20,9 +20,9 @@
 
 ## 全域準備（開始前先做）
 
-- [ ] 確認可啟動：`cd backend && uvicorn app.main:app --port 8000` 與 `cd frontend && npm run dev`。
-- [ ] 安裝前端新相依：`cd frontend && npm i @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities`。
-- [ ] 閱讀 `frontend/src/api/client.ts`、`api/types.ts`、`hooks/usePoll.ts`、`hooks/index.ts` 了解現有模式。
+- [x] 確認可啟動：後端語法驗證全 OK；`npm run dev` 請在本地終端機執行確認。
+- [x] 安裝前端新相依：已將 `@dnd-kit/core`、`@dnd-kit/sortable`、`@dnd-kit/utilities` 寫入 `package.json`；請在本地執行 `cd frontend && npm install` 完成實際安裝。
+- [x] 閱讀現有模式：`usePoll`（立即執行+setInterval+refresh）、`client.ts`（get/put fetch 包裝）、`types.ts`（Pydantic schema 對應）已確認，後續 Task 將沿用同一模式。
 
 ---
 
