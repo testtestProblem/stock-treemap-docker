@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import AssetCards from '../cards/AssetCards'
-import PositionTable from '../positions/PositionTable'
+import ListPanel from '../list/ListPanel'
 import Treemap, { type SizeBy, type TreemapHandle } from '../treemap/Treemap'
 import PerformanceChart from '../performance/PerformanceChart'
 import Header from './Header'
@@ -87,12 +87,12 @@ export default function DashboardLayout() {
       {/* flex-col on mobile, flex-row on lg+ */}
       <div className="flex flex-col lg:flex-row gap-3 flex-1" style={{ minHeight: 480 }}>
 
-        {/* 左側持倉表（mobile 固定高 300px，lg 側欄） */}
+        {/* 左側：ListPanel（庫存 / 自選 Tabs） */}
         <aside className="w-full lg:w-72 flex-shrink-0 bg-gray-900 rounded-xl p-3 overflow-hidden"
           style={{ height: 'auto', minHeight: 0 }}
         >
           <div className="h-72 lg:h-full">
-            <PositionTable data={positions.data} loading={positions.loading} error={positions.error} />
+            <ListPanel positions={positions} />
           </div>
         </aside>
 

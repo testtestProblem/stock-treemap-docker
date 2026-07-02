@@ -110,15 +110,16 @@
 - 修改 `DashboardLayout.tsx`（左欄改用 `<ListPanel/>`）
 
 **步驟**：
-- [ ] `WatchlistTabs.tsx`：Tabs `[庫存][自選清單][+ 新增]`（先做單一自選清單；多清單見備註）。
-- [ ] `activeTab` state 存 `localStorage`，重整復原。
-- [ ] `庫存` Tab → 渲染既有 `PositionTable`。
-- [ ] `自選清單` Tab → `useWatchlist()` 取 codes，對照 `useTreemap`/snapshot 顯示現價。
-- [ ] `ListPanel` 整合 Tabs + 列表容器（下方預留 InputBar 插槽）。
+- [x] `WatchlistTabs.tsx`：Tabs `[庫存][自選清單]`（先做單一自選清單）。
+- [x] `activeTab` state 存 `localStorage`，重整復原。
+- [x] `庫存` Tab → 渲染既有 `PositionTable`。
+- [x] `自選清單` Tab → `useWatchlist()` 取 codes，`useTreemap('watchlist')` 取快照，顯示代號/名稱/現價/漲跌幅。
+- [x] `ListPanel` 整合 Tabs + 列表容器（下方預留 InputBar 插槽 for Task 8-4）。
 
 **DoD**：
-- [ ] 切換 Tab 內容正確切換，重整後停留在原 Tab。
-- [ ] 庫存 Tab 與現有 PositionTable 行為一致。
+- [x] 切換 Tab 內容正確切換，重整後停留在原 Tab。
+- [x] 庫存 Tab 與現有 PositionTable 行為一致。
+- [x] `npm run lint` + `npm run build` 通過。
 
 > **多清單備註**：規格提及自選清單 1/2，需後端擴充 `GET/PUT /api/market/watchlists/{id}`。**本階段先落地單一自選清單**，多清單列為後續 Task 8-3b。
 
