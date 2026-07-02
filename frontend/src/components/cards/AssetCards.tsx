@@ -1,5 +1,4 @@
 import { motion, AnimatePresence } from 'motion/react'
-import { PieChart, Pie, Cell, Tooltip } from 'recharts'
 import type { AssetsResponse } from '../../api/types'
 import { fmtMoney, fmtPct } from '../../lib/format'
 import { pnlClass } from '../../lib/colors'
@@ -57,93 +56,6 @@ function Card({ label, main, mainClass, subs, accent, index }: CardProps) {
           <span className={`ml-1 ${s.valueClass ?? ''}`}>{s.value}</span>
         </p>
       ))}
-    </motion.div>
-  )
-}
-
-// ── 待交割款 Donut 卡片 ───────────────────────────────────────────────────────
-
-const DONUT_COLORS = ['#3b82f6', '#6366f1']  // blue / indigo
-
-function DonutCard({ data, index }: { data: AssetsResponse; index: number }) {
-  const t1 = Math.abs(data.pending_t1)
-  const t2 = Math.abs(data.pending_t2)
-  const total = data.pending_settlement
-
-  const chartData =
-    t1 + t2 > 0
-      ? [
-          { name: 'T+1', value: t1 },
-          { name: 'T+2', value: t2 },
-        ]
-      : [{ name: '無', value: 1 }]
-
-  const noData = t1 + t2 === 0
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: index * 0.07, ease: 'easeOut' }}
-      className="rounded-xl p-4 flex flex-col gap-1 bg-gray-800"
-    >
-      <p className="text-xs text-gray-400 tracking-wide">待交割款</p>
-      <div className="flex items-center gap-3">
-        {/* Donut */}
-        <div className="relative flex-shrink-0">
-          <PieChart width={72} height={72}>
-            <Pie
-              data={chartData}
-              dataKey="value"
-              cx={36}
-              cy={36}
-              innerRadius={22}
-              outerRadius={33}
-              strokeWidth={0}
-              startAngle={90}
-              endAngle={-270}
-            >
-              {chartData.map((_, i) => (
-                <Cell
-                  key={i}
-                  fill={noData ? '#374151' : DONUT_COLORS[i % DONUT_COLORS.length]}
-                />
-              ))}
-            </Pie>
-            {!noData && (
-              <Tooltip
-                formatter={(v) => [`$${fmtMoney(Number(v))}`, '']}
-                contentStyle={{ background: '#1f2937', border: 'none', fontSize: 11 }}
-              />
-            )}
-          </PieChart>
-          {/* 中心數字 */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span className="text-[9px] text-gray-300 tabular-nums leading-tight text-center">
-              {noData ? '—' : fmtMoney(Math.abs(total))}
-            </span>
-          </div>
-        </div>
-
-        {/* 明細 */}
-        <div className="flex flex-col gap-0.5 min-w-0">
-          <p className="text-xl font-semibold tabular-nums text-gray-100 truncate">
-            ${fmtMoney(total)}
-          </p>
-          <p className="text-xs text-gray-500">
-            T+1&nbsp;
-            <span className={pnlClass(data.pending_t1)}>
-              {fmtMoney(data.pending_t1)}
-            </span>
-          </p>
-          <p className="text-xs text-gray-500">
-            T+2&nbsp;
-            <span className={pnlClass(data.pending_t2)}>
-              {fmtMoney(data.pending_t2)}
-            </span>
-          </p>
-        </div>
-      </div>
     </motion.div>
   )
 }
@@ -231,8 +143,16 @@ export default function AssetCards({ data, loading, error }: Props) {
               ].filter(Boolean) as SubLine[]}
             />
 
-            {/* 卡片 5：待交割款 Donut */}
-            <DonutCard index={4} data={data} />
+            {/* 卡片 5：待交割款 */}
+            <Card
+              index={4}
+              label="待交割款"
+              main={$(data.pending_settlement)}
+              subs={[
+                { label: 'T+1', value: fmtMoney(data.pending_t1), valueClass: pnlClass(data.pending_t1) },
+                { label: 'T+2', value: fmtMoney(data.pending_t2), valueClass: pnlClass(data.pending_t2) },
+              ]}
+            />
           </>
         )}
       </AnimatePresence>
