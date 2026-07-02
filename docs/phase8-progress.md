@@ -79,7 +79,7 @@ http://localhost:8000/api/admin/export-db
 
 ---
 
-## Task 8-2：KPI 卡片擴充為 5 張（含 Donut）
+## Task 8-2：KPI 卡片擴充為 5 張
 
 **做了什麼**
 
@@ -97,7 +97,7 @@ http://localhost:8000/api/admin/export-db
 | 2 | 現金 | `cash` | 融資損益 / 融券損益（非零才顯示） |
 | 3 | 現股市值 | `stock_value` | 融資市值 / 融券市值（後端補充後顯示） |
 | 4 | 未實現損益 | `unrealized_pnl` | 今日實現損益（後端補充後顯示，否則「—」） |
-| 5 | 待交割款 | `pending_settlement` | T+1/T+2 Donut 環圖 + 明細 |
+| 5 | 待交割款 | `pending_settlement` | T+1 / T+2 明細（純文字）|
 
 **驗證**
 1. 開啟 `http://localhost:5173`

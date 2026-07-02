@@ -92,7 +92,7 @@ GET  /api/admin/export-db        # 回傳 SQLite 檔（Content-Disposition: atta
 
 ## 3. Row 1：帳戶資訊卡片區（KPI Dashboard）
 
-佈局規劃 5 張卡片（現有 4 張 → 擴充第 5 張「待交割款 Donut」）。全部綁定 `GET /api/account/assets`（`useAssets`，30s）。
+佈局規劃 5 張卡片（現有 4 張 → 擴充第 5 張「待交割款」）。全部綁定 `GET /api/account/assets`（`useAssets`，30s）。
 
 | # | 卡片 | 主數字 | 副資訊 | 對應欄位 |
 |---|---|---|---|---|
@@ -100,12 +100,12 @@ GET  /api/admin/export-db        # 回傳 SQLite 檔（Content-Disposition: atta
 | 2 | Cash 現金餘額 | `cash` | 融資損益 / 融券損益 | `cash` / `margin_pnl` / `short_pnl` |
 | 3 | 現股市值 | `stock_value` | 融資市值 / 融券市值 | `stock_value`（副：需後端補分項）|
 | 4 | 未實現損益 | 未實現總損益 | 今日實現總損益 | 需後端補 `unrealized_pnl` / `realized_pnl` |
-| 5 | 待交割款（Donut） | `pending_settlement` | T+1 / T+2 待交割款 | `pending_settlement` / `pending_t1` / `pending_t2` |
+| 5 | 待交割款 | `pending_settlement` | T+1 / T+2 待交割款 | `pending_settlement` / `pending_t1` / `pending_t2` |
 
 ### 3.1 互動邏輯
 
 - **著色**：損益類數字依正負套 `pnlColor()`（綠/紅），零為灰。
-- **Donut Chart（卡片 5）**：以 `pending_t1`、`pending_t2` 佔比繪製環圖（Recharts `PieChart`），中心顯示 `pending_settlement` 合計。
+- **待交割款（卡片 5）**：純文字顯示 `pending_settlement` 為主數字，`pending_t1`（T+1）與 `pending_t2`（T+2）各為副行，依正負著色。
 - **載入 / 錯誤狀態**：`loading` 顯示 skeleton；`error` 顯示「—」並保留最後一次成功值（stale-while-revalidate）。
 
 ### 3.2 契約缺口（建議後端補充）
@@ -287,7 +287,7 @@ POST /api/market/watchlists            → 新增一份清單
 |---|---|---|
 | `components/layout/Header.tsx` | 新增 | 抽離 Header，含 API 狀態列 / 登入 / 下載 |
 | `components/status/ApiStatusBadge.tsx` | 新增 | 使用量 % + 燈號 |
-| `components/cards/AssetCards.tsx` | 修改 | 擴充為 5 張，第 5 張含 Donut |
+| `components/cards/AssetCards.tsx` | 修改 | 擴充為 5 張純文字卡片 |
 | `components/list/ListPanel.tsx` | 新增 | 整合 Tabs + 列表 + 輸入列 |
 | `components/list/WatchlistTabs.tsx` | 新增 | 分頁切換 |
 | `components/list/SortableStockRow.tsx` | 新增 | 可拖拽卡片（dnd-kit）|
@@ -323,7 +323,7 @@ POST /api/market/watchlists            → 新增一份清單
 ## 11. 實作階段建議（Phase 8）
 
 - **8-1 Header 狀態列**：`useApiStatus`、燈號、手動重連、下載。
-- **8-2 卡片擴充**：第 5 張 Donut + 副欄位（後端補齊後啟用）。
+- **8-2 卡片擴充**：第 5 張待交割款（純文字）+ 副欄位（後端補齊後啟用）。
 - **8-3 列表分頁**：WatchlistTabs + 庫存/自選資料綁定。
 - **8-4 搜尋與新增**：universe + fuzzy + InputBar + 樂觀更新。
 - **8-5 拖拽排序 + 持久化**：dnd-kit + localStorage + PUT 同步。

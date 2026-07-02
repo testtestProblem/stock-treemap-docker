@@ -76,10 +76,10 @@
 
 ---
 
-## Task 8-2：KPI 卡片擴充為 5 張（含 Donut）
+## Task 8-2：KPI 卡片擴充為 5 張
 
 **相依**：Task 8-0（副欄位可選）
-**目標**：現有 4 張 → 5 張，第 5 張為待交割款 Donut。
+**目標**：現有 4 張 → 5 張，第 5 張為待交割款純文字卡片。
 
 **檔案**：修改 `frontend/src/components/cards/AssetCards.tsx`
 
@@ -88,12 +88,12 @@
 - [x] 卡片 2 現金：主 `cash`，副 融資損益 `margin_pnl` / 融券損益 `short_pnl`。
 - [x] 卡片 3 現股市值：主 `stock_value`，副 融資市值 / 融券市值（無值則「—」）。
 - [x] 卡片 4 未實現損益：主 `unrealized_pnl`，副 今日實現 `realized_pnl_today`（無值則「—」）。
-- [x] 卡片 5 待交割（Donut）：Recharts `PieChart` 以 `pending_t1`/`pending_t2` 佔比，中心顯示 `pending_settlement`。
+- [x] 卡片 5 待交割：主 `pending_settlement`，副 `pending_t1`（T+1）、`pending_t2`（T+2），純文字顯示。
 - [x] 損益數字統一套 `pnlClass()`（綠/紅/灰）；`loading` skeleton；`error` 橫幅。
 
 **DoD**：
 - [x] 顯示 5 張卡片，RWD 下能換行不擠壓（`grid-cols-2 md:grid-cols-3 lg:grid-cols-5`）。
-- [x] Donut 佔比正確、中心數字等於 `pending_settlement`。
+- [x] 卡片 5 主數字為 `pending_settlement`，T+1 / T+2 各自顯示於副行。
 - [x] 後端無副欄位時，副資訊顯示「—」不報錯。
 - [x] `npm run lint` + `npm run build` 通過。
 
@@ -243,7 +243,7 @@
 | `backend/app/scheduler/scheduler.py` | 修改（18:00） | 8-8 |
 | `frontend/src/components/layout/Header.tsx` | 新增 | 8-1 |
 | `frontend/src/components/status/ApiStatusBadge.tsx` | 新增 | 8-1 |
-| `frontend/src/components/cards/AssetCards.tsx` | 修改（5 張 + Donut） | 8-2 |
+| `frontend/src/components/cards/AssetCards.tsx` | 修改（5 張純文字卡片） | 8-2 |
 | `frontend/src/components/list/ListPanel.tsx` | 新增 | 8-3 |
 | `frontend/src/components/list/WatchlistTabs.tsx` | 新增 | 8-3 |
 | `frontend/src/components/list/WatchlistInputBar.tsx` | 新增 | 8-4 |
